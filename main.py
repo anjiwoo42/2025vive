@@ -1,6 +1,5 @@
 import streamlit as st
 import random
-from collections import defaultdict
 
 # 메뉴 + 가격 + 맛집 정보
 menu_data = {
@@ -60,36 +59,16 @@ menu_data = {
     }
 }
 
-# 세션 상태 초기화
-if 'history' not in st.session_state:
-    st.session_state.history = []
-
-if 'current_menu' not in st.session_state:
-    st.session_state.current_menu = None
-
 st.title("🍱 오늘 점심 뭐 먹지?")
 
 # 카테고리 선택
 selected_categories = st.multiselect(
-    "먹고 싶은 음식 종류를 골라보세요!", 
-    options=list(menu_data.keys()), 
+    "먹고 싶은 음식 종류를 골라보세요!",
+    options=list(menu_data.keys()),
     default=list(menu_data.keys())
 )
 
-# 가중치 적용 함수
-def get_weighted_menu_list(menu_dicts, history):
-    rating_map = defaultdict(list)
-    for entry in history:
-        rating_map[entry["menu"]].append(entry["rating"])
-
-    weighted_menu = []
-    for menu_name in menu_dicts:
-        ratings = rating_map[menu_name]
-        weight = round(sum(ratings)/len(ratings)) if ratings else 1
-        weighted_menu.extend([menu_name] * weight)
-    return weighted_menu
-
-# 추천 버튼
+# 메뉴 추천 버튼
 if st.button("메뉴 추천받기"):
     combined_menu = {}
     for category in selected_categories:
@@ -98,41 +77,13 @@ if st.button("메뉴 추천받기"):
     if not combined_menu:
         st.warning("카테고리를 하나 이상 선택해 주세요!")
     else:
-        weighted_menu = get_weighted_menu_list(combined_menu, st.session_state.history)
-        recommendation = random.choice(weighted_menu)
-        st.session_state.current_menu = recommendation
-        selected_item = combined_menu[recommendation]
-        st.success(f"👉 오늘은 **{recommendation} ({selected_item['price']:,}원)** 어때요?")
+        menu_name = random.choice(list(combined_menu.keys()))
+        menu_info = combined_menu[menu_name]
 
-        # 맛집 정보 출력
+        st.success(f"👉 오늘은 **{menu_name} ({menu_info['price']:,}원)** 어때요?")
         st.markdown("#### 📍 대한민국 대표 맛집 추천:")
-        for idx, place in enumerate(selected_item["restaurants"], 1):
+        for idx, place in enumerate(menu_info["restaurants"], 1):
             st.write(f"{idx}. {place}")
-
-# 평점 입력
-if st.session_state.current_menu:
-    st.markdown("### ⭐ 이 메뉴에 평점을 매겨주세요!")
-    rating = st.slider("평점 (1점 ~ 5점)", 1, 5, 3)
-
-    if st.button("평점 제출"):
-        st.session_state.history.append({
-            "menu": st.session_state.current_menu,
-            "rating": rating
-        })
-        st.success(f"'{st.session_state.current_menu}'에 {rating}점을 주셨어요!")
-        st.session_state.current_menu = None
-
-# 평가 기록 출력
-if st.session_state.history:
-    st.markdown("---")
-    st.subheader("📊 내가 준 점심 평점")
-    for entry in st.session_state.history:
-        menu_name = entry['menu']
-        price = next(
-            (menu_data[cat][menu_name]["price"] for cat in menu_data if menu_name in menu_data[cat]), 
-            "N/A"
-        )
-        st.write(f"- {menu_name} ({price:,}원) : ⭐ {entry['rating']}점")
 
 # footer
 st.markdown("---")

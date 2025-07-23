@@ -2,42 +2,61 @@ import streamlit as st
 import random
 from collections import defaultdict
 
-# 메뉴 + 가격 데이터 (단위: 원)
+# 메뉴 + 가격 + 맛집 정보
 menu_data = {
     "한식": {
-        "김치찌개": 8000,
-        "불고기": 10000,
-        "비빔밥": 8500,
-        "제육볶음": 9000,
-        "된장찌개": 7500
+        "김치찌개": {
+            "price": 8000,
+            "restaurants": ["청진동 해장국 (서울 종로)", "진고개 (을지로)"]
+        },
+        "불고기": {
+            "price": 10000,
+            "restaurants": ["한일관 (압구정)", "백리향 (롯데호텔 소공동)"]
+        },
+        "비빔밥": {
+            "price": 8500,
+            "restaurants": ["고궁 (전주)", "진주회관 (서울 시청)"]
+        }
     },
     "중식": {
-        "짜장면": 6000,
-        "짬뽕": 7000,
-        "탕수육": 12000,
-        "마라탕": 11000,
-        "꿔바로우": 13000
+        "짜장면": {
+            "price": 6000,
+            "restaurants": ["홍보각 (신세계백화점 본점)", "팔선 (웨스틴조선호텔)"]
+        },
+        "마라탕": {
+            "price": 11000,
+            "restaurants": ["라화쿵부 (전국 체인)", "천향 (건대)"]
+        }
     },
     "일식": {
-        "초밥": 14000,
-        "우동": 7500,
-        "규동": 9000,
-        "돈까스": 8500,
-        "라멘": 9500
+        "초밥": {
+            "price": 14000,
+            "restaurants": ["스시효 (청담)", "스시마츠모토 (이태원)"]
+        },
+        "라멘": {
+            "price": 9500,
+            "restaurants": ["멘야산다이메 (홍대)", "하카타분코 (서래마을)"]
+        }
     },
     "양식": {
-        "파스타": 13000,
-        "피자": 15000,
-        "스테이크": 20000,
-        "햄버거": 9000,
-        "리조또": 12000
+        "파스타": {
+            "price": 13000,
+            "restaurants": ["매듭 (이태원)", "까사마루 (합정)"]
+        },
+        "햄버거": {
+            "price": 9000,
+            "restaurants": ["버거파크 (이태원)", "다운타우너 (청담)"]
+        }
     },
     "기타": {
-        "샐러드": 7000,
-        "분식": 6000,
-        "도시락": 8000,
-        "샌드위치": 6500,
-        "컵밥": 5500
+        "샐러드": {
+            "price": 7000,
+            "restaurants": ["샐러디 (체인)", "그린파크 (강남)"]
+        },
+        "컵밥": {
+            "price": 5500,
+            "restaurants": ["컵밥거리 (신촌)", "엄마의컵밥 (홍대)"]
+        }
     }
 }
 
@@ -50,26 +69,23 @@ if 'current_menu' not in st.session_state:
 
 st.title("🍱 오늘 점심 뭐 먹지?")
 
-# 선택한 카테고리
+# 카테고리 선택
 selected_categories = st.multiselect(
     "먹고 싶은 음식 종류를 골라보세요!", 
     options=list(menu_data.keys()), 
     default=list(menu_data.keys())
 )
 
-# 평점 기반 추천 확률 가중치 계산
+# 가중치 적용 함수
 def get_weighted_menu_list(menu_dicts, history):
     rating_map = defaultdict(list)
     for entry in history:
         rating_map[entry["menu"]].append(entry["rating"])
 
     weighted_menu = []
-    for menu_name, price in menu_dicts.items():
-        if rating_map[menu_name]:
-            avg_rating = sum(rating_map[menu_name]) / len(rating_map[menu_name])
-            weight = round(avg_rating)
-        else:
-            weight = 1
+    for menu_name in menu_dicts:
+        ratings = rating_map[menu_name]
+        weight = round(sum(ratings)/len(ratings)) if ratings else 1
         weighted_menu.extend([menu_name] * weight)
     return weighted_menu
 
@@ -77,7 +93,7 @@ def get_weighted_menu_list(menu_dicts, history):
 if st.button("메뉴 추천받기"):
     combined_menu = {}
     for category in selected_categories:
-        combined_menu.update(menu_data[category])  # dict 병합
+        combined_menu.update(menu_data[category])
 
     if not combined_menu:
         st.warning("카테고리를 하나 이상 선택해 주세요!")
@@ -85,8 +101,13 @@ if st.button("메뉴 추천받기"):
         weighted_menu = get_weighted_menu_list(combined_menu, st.session_state.history)
         recommendation = random.choice(weighted_menu)
         st.session_state.current_menu = recommendation
-        price = combined_menu[recommendation]
-        st.success(f"👉 오늘은 **{recommendation} ({price:,}원)** 어때요?")
+        selected_item = combined_menu[recommendation]
+        st.success(f"👉 오늘은 **{recommendation} ({selected_item['price']:,}원)** 어때요?")
+
+        # 맛집 정보 출력
+        st.markdown("#### 📍 대한민국 대표 맛집 추천:")
+        for idx, place in enumerate(selected_item["restaurants"], 1):
+            st.write(f"{idx}. {place}")
 
 # 평점 입력
 if st.session_state.current_menu:
@@ -101,14 +122,14 @@ if st.session_state.current_menu:
         st.success(f"'{st.session_state.current_menu}'에 {rating}점을 주셨어요!")
         st.session_state.current_menu = None
 
-# 평가 기록
+# 평가 기록 출력
 if st.session_state.history:
     st.markdown("---")
     st.subheader("📊 내가 준 점심 평점")
     for entry in st.session_state.history:
         menu_name = entry['menu']
         price = next(
-            (menu_data[cat][menu_name] for cat in menu_data if menu_name in menu_data[cat]), 
+            (menu_data[cat][menu_name]["price"] for cat in menu_data if menu_name in menu_data[cat]), 
             "N/A"
         )
         st.write(f"- {menu_name} ({price:,}원) : ⭐ {entry['rating']}점")
